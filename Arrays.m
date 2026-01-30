@@ -5,8 +5,9 @@ N=5;d=0.05;theta0=90-20;f=1000;f1=300;fr=20;f2=3400;
 
 %plot_arrayfactor_polar(x_array, f, theta0, TF)
 
-plot_arrayfactor_heatmap(N,d,'simple','uni',f1,fr,f2,theta0,'fix')
-plot_arrayfactor_heatmap(N,d,'simple','uni',f1,fr,f2,theta0,'fdep')
+%plot_arrayfactor_heatmap(N,d,'simple','uni',f1,fr,f2,theta0,'fix')
+AF1=plot_arrayfactor_heatmap(N,d,'simple','uni',f1,fr,f2,theta0,'fdep')
+AF2=plot_arrayfactor_heatmap(N,d,'simple','uni',f1,fr,f2,theta0,'tau')
 
 
 %%
@@ -16,7 +17,7 @@ visualize_nested_array(x_array)
 %%
 %#####################################################################
 %#####################################################################
-function plot_arrayfactor_heatmap(N, d, array_mode, taper_mode, f1,fr,f2, theta0_deg, w_mode)
+function AF=plot_arrayfactor_heatmap(N, d, array_mode, taper_mode, f1,fr,f2, theta0_deg, w_mode)
     c=343;
     freqs = f1:fr:f2;
     theta0 = deg2rad(theta0_deg);
@@ -40,7 +41,7 @@ function plot_arrayfactor_heatmap(N, d, array_mode, taper_mode, f1,fr,f2, theta0
         TF=taper_binomial(N);
     end
     
-
+    
     if strcmp(w_mode, 'fix')
         f_ref = mean(freqs);
         k_ref = 2*pi*f_ref/c;
@@ -69,6 +70,27 @@ function plot_arrayfactor_heatmap(N, d, array_mode, taper_mode, f1,fr,f2, theta0
             B(fi,:) = AF_mag / max(AF_mag + eps);
         end
     end
+    Fs = 48000;   % samples/s
+
+if strcmp(w_mode, 'tau') %EXACTLY THE SAME AS FDEP BUT RE-WRITTEN AS TAU
+    tau = (x_array .* cos(theta0)) / c;
+    samples_shift = Fs*tau;
+    N = round(samples_shift);
+    tau_q = N / Fs; 
+    for fi = 1:numel(freqs)
+        f = freqs(fi);
+        k = 2*pi*f/c;
+
+        SF = exp(-1j * 2*pi*f * tau_q);         
+        W  = TF .* SF;                        
+
+        LV = exp(1j * k * (x_array * cos(phi))); % looking vector
+        AF = W.' * LV;
+
+        AF_mag = abs(AF);
+        B(fi,:) = AF_mag / max(AF_mag + eps);
+    end
+end
 
     figure;
     imagesc(phi_deg, freqs/1000, B);   % x=phi in degrees, y=f in kHz
